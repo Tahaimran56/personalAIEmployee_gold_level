@@ -293,19 +293,28 @@ class SilverTierVerifier:
 
     def pass_check(self, message: str):
         """Record a passed check."""
-        print(f"  ✓ {message}")
+        try:
+            print(f"  ✓ {message}")
+        except UnicodeEncodeError:
+            print(f"  [OK] {message}")
         self.results.append(('PASS', message))
         self.passed += 1
 
     def fail_check(self, message: str):
         """Record a failed check."""
-        print(f"  ✗ {message}")
+        try:
+            print(f"  ✗ {message}")
+        except UnicodeEncodeError:
+            print(f"  [FAIL] {message}")
         self.results.append(('FAIL', message))
         self.failed += 1
 
     def warn_check(self, message: str):
         """Record a warning."""
-        print(f"  ⚠ {message}")
+        try:
+            print(f"  ⚠ {message}")
+        except UnicodeEncodeError:
+            print(f"  [WARN] {message}")
         self.results.append(('WARN', message))
         self.warnings += 1
 
