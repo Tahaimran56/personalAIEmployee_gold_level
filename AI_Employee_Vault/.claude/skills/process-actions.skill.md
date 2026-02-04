@@ -1,70 +1,72 @@
-# Process Action Items Skill
+# Process Actions Skill
+
+**Skill Name**: process-actions
+**Version**: 2.0.0 (Enhanced with Multi-Step Planning)
+**Purpose**: Process action files from Needs_Action folder and route to appropriate handlers
 
 ## Description
-Processes files from the Needs_Action folder, reviews their content, categorizes them, and moves completed items to the Done folder.
+
+This skill monitors the Needs_Action/ folder for new action files (emails, tasks, etc.) and routes them to the appropriate service. Enhanced in Silver tier to detect complex multi-step tasks and automatically generate plans.
 
 ## Usage
+
+### Manual Trigger
+
 ```
 /process-actions
 ```
 
-## What This Skill Does
+### Automatic Trigger
 
-1. **Scans Needs_Action Folder**
-   - Lists all pending action files
-   - Identifies priority levels
-   - Sorts by urgency
+The skill runs automatically when:
+- Gmail watcher creates new email action files
+- User manually creates action files in Needs_Action/
+- Scheduler triggers periodic processing
 
-2. **Processes Each Item**
-   - Reads the action file content
-   - Reviews the original file if referenced
-   - Adds processing notes
-   - Updates status and checkboxes
-   - Categorizes (Personal/Business/Administrative)
+## Action Detection
 
-3. **Completes Tasks**
-   - Marks all suggested actions as complete
-   - Adds timestamp and processor info
-   - Moves to Done folder
-   - Updates Dashboard with activity
+### Simple Actions (Bronze Tier)
 
-4. **Updates Dashboard**
-   - Increments completed tasks counter
-   - Logs activity in Recent Activity section
-   - Updates last processed timestamp
+Processed directly without planning:
+- Single email responses
+- Simple file operations
+- Quick status updates
+- Straightforward tasks with clear single action
 
-## Example Workflow
+### Complex Actions (Silver Tier - NEW)
 
-```
-User: /process-actions
+Automatically trigger plan generation when task contains:
+- Multiple verbs indicating steps (e.g., "research AND prepare")
+- Time-based phrases (e.g., "over the next week", "multi-day")
+- Keywords: "plan", "strategy", "prepare", "organize", "coordinate"
+- Deliverables requiring multiple outputs
+- Tasks with explicit steps or phases
 
-AI Employee:
-1. Found 2 items in Needs_Action/
-2. Processing FILE_test_document_2026-02-03.md
-   - Category: Administrative
-   - Priority: Normal
-   - Action: Reviewed and archived
-3. Processing EMAIL_client_request_2026-02-03.md
-   - Category: Business
-   - Priority: High
-   - Action: Draft response created (pending approval)
-4. Updated Dashboard
-5. Moved 1 completed item to Done/
-```
+## Multi-Step Task Detection
 
-## Parameters
-- None (processes all items in Needs_Action/)
+The skill analyzes action descriptions for complexity indicators.
 
-## Output
-- Summary of processed items
-- Updated Dashboard
-- Completed items moved to Done/
+## Processing Flow
+
+1. Scan Needs_Action/ folder for new files
+2. For each action file:
+   - Parse frontmatter and body
+   - Detect action type (email, task, etc.)
+   - Check if complex task (NEW)
+   - Route to appropriate handler
+3. Move processed file to In_Progress/
+4. Log processing result
 
 ## Related Skills
-- `/update-dashboard` - Updates the Dashboard manually
-- `/start-watcher` - Starts the File System Watcher
+
+- /create-plan - Manually create a plan
+- /execute-plan - Execute plan steps
+- /send-email - Send draft emails
+- /post-linkedin - Post to LinkedIn
 
 ## Notes
-- Items requiring approval are moved to Pending_Approval/ instead of Done/
-- High priority items are processed first
-- All actions are logged in Logs/ folder
+
+- Runs automatically via scheduler (every 5 minutes)
+- Can be triggered manually for immediate processing
+- Complex task detection is heuristic-based
+- Plans can be edited before execution
