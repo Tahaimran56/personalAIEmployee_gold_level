@@ -1,0 +1,58 @@
+# Environment Variables (NEVER COMMIT)
+config/.env
+.env
+*.env
+
+# API Credentials (NEVER COMMIT)
+credentials.json
+token.json
+*.credentials.json
+
+# WhatsApp Session Data (NEVER COMMIT)
+AI_Employee_Vault/.state/whatsapp_session/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+AI_Employee_Vault/services/__pycache__/
+AI_Employee_Vault/watchers/__pycache__/
+
+# Node.js
+node_modules/
+AI_Employee_Vault/mcp/node_modules/
+package-lock.json
+AI_Employee_Vault/mcp/package-lock.json
+
+# Logs (may contain sensitive data)
+*.log
+AI_Employee_Vault/Logs/*.log
+
+# Generated Plans (may contain sensitive data)
+AI_Employee_Vault/Plans/*.md
+
+# State Files
+AI_Employee_Vault/.state/processed_emails.json
+AI_Employee_Vault/.state/processed_whatsapp.json
+
+# Test Files
+test_*.py
+nul
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary Files
+*.tmp
+*.temp
