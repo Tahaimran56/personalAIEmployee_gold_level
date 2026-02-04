@@ -40,21 +40,21 @@ def setup_gmail_auth():
 
     # Check if we have existing credentials
     if token_file.exists():
-        print("\n✓ Found existing token.json")
+        print("\n[OK] Found existing token.json")
         creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
 
     # If credentials are invalid or don't exist, run OAuth flow
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            print("\n⟳ Refreshing expired token...")
+            print("\n[INFO] Refreshing expired token...")
             creds.refresh(Request())
         else:
-            print("\n⚠ No valid credentials found. Starting OAuth flow...")
+            print("\n[WARN] No valid credentials found. Starting OAuth flow...")
 
             # Check for credentials.json
             creds_file = Path(__file__).parent.parent.parent / 'credentials.json'
             if not creds_file.exists():
-                print("\n❌ ERROR: credentials.json not found!")
+                print("\n[ERROR] credentials.json not found!")
                 print("\nPlease follow these steps:")
                 print("1. Go to https://console.cloud.google.com")
                 print("2. Create a new project or select existing")
@@ -63,16 +63,23 @@ def setup_gmail_auth():
                 print("5. Download credentials.json to project root")
                 return None
 
-            # Run OAuth flow
+            # Run OAuth flow with local server
+            print("\n[INFO] Starting OAuth flow...")
+            print("[INFO] Your browser will open automatically...")
+            print("[INFO] If browser doesn't open, copy the URL from above and paste in browser")
+
             flow = InstalledAppFlow.from_client_secrets_file(
                 str(creds_file), SCOPES
             )
-            creds = flow.run_local_server(port=8080)
-            print("\n✓ OAuth flow completed successfully!")
+
+            # Use local server (works with Desktop app credentials)
+            creds = flow.run_local_server(port=0)  # port=0 means use any available port
+
+            print("\n[OK] OAuth flow completed successfully!")
 
         # Save credentials for next run
         token_file.write_text(creds.to_json())
-        print(f"✓ Saved credentials to {token_file}")
+        print(f"[OK] Saved credentials to {token_file}")
 
     # Extract credentials for .env
     if creds:
@@ -81,13 +88,13 @@ def setup_gmail_auth():
 
         # Update .env file
         if env_path.exists():
-            print("\n⟳ Updating config/.env with credentials...")
+            print("\n[INFO] Updating config/.env with credentials...")
             set_key(str(env_path), 'GMAIL_REFRESH_TOKEN', creds_data.get('refresh_token', ''))
             set_key(str(env_path), 'GMAIL_CLIENT_ID', creds_data.get('client_id', ''))
             set_key(str(env_path), 'GMAIL_CLIENT_SECRET', creds_data.get('client_secret', ''))
-            print("✓ Updated config/.env")
+            print("[OK] Updated config/.env")
         else:
-            print("\n⚠ Warning: config/.env not found. Please create it from .env.template")
+            print("\n[WARN] Warning: config/.env not found. Please create it from .env.template")
 
     print("\n" + "=" * 60)
     print("Gmail OAuth2 Setup Complete!")
