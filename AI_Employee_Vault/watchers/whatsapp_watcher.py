@@ -169,56 +169,106 @@ class WhatsAppWatcher(BaseWatcher):
             else:
                 page = browser.pages[0]
 
-            # Navigate to WhatsApp Web
-            if page.url != 'https://web.whatsapp.com/':
+            # Navigate to WhatsApp Web if not already there
+            if 'web.whatsapp.com' not in page.url:
                 self.logger.info("Navigating to WhatsApp Web...")
                 page.goto('https://web.whatsapp.com/', timeout=timeout)
 
-                # Wait for QR code or chat list
+            # Give page time to load
+            self.logger.info("Waiting for page to load...")
+            page.wait_for_load_state('networkidle', timeout=timeout)
+
+            # Try multiple selectors to detect if logged in
+            self.logger.info("Checking login status...")
+            logged_in = False
+
+            # Try different selectors that indicate WhatsApp Web is loaded
+            selectors_to_try = [
+                '[data-testid="chat-list"]',
+                '#pane-side',
+                '[data-testid="conversation-panel-wrapper"]',
+                'div[role="application"]',
+                '#app'
+            ]
+
+            for selector in selectors_to_try:
                 try:
-                    # Wait for either QR code (first time) or chat list (logged in)
-                    page.wait_for_selector('canvas[aria-label="Scan me!"], [data-testid="chat-list"]', timeout=timeout)
+                    element = page.wait_for_selector(selector, timeout=5000)
+                    if element:
+                        self.logger.info(f"Found element: {selector}")
+                        logged_in = True
+                        break
+                except:
+                    continue
 
-                    # Check if QR code is present
-                    qr_code = page.query_selector('canvas[aria-label="Scan me!"]')
-                    if qr_code:
-                        self.logger.warning("QR code detected. Please scan QR code in the browser window to log in.")
-                        self.logger.warning("The watcher will wait for you to complete login...")
+            if not logged_in:
+                self.logger.warning("Could not detect WhatsApp Web elements. Session may have expired.")
+                self.logger.warning("Please run the test script again to re-login.")
+                return
 
-                        # Wait for login (up to 2 minutes)
-                        page.wait_for_selector('[data-testid="chat-list"]', timeout=120000)
-                        self.logger.info("Login successful!")
+            self.logger.info("WhatsApp Web loaded successfully!")
 
+            # Find unread chats - try multiple approaches
+            self.logger.info("Looking for unread messages...")
+            unread_chats = []
+
+            # Method 1: Look for unread badges
+            try:
+                unread_badges = page.query_selector_all('span[data-testid="icon-unread-count"]')
+                if unread_badges:
+                    self.logger.info(f"Found {len(unread_badges)} unread badges")
+                    unread_chats = unread_badges
+            except Exception as e:
+                self.logger.warning(f"Method 1 failed: {e}")
+
+            # Method 2: Look for aria-label with "unread"
+            if not unread_chats:
+                try:
+                    unread_elements = page.query_selector_all('[aria-label*="unread"]')
+                    if unread_elements:
+                        self.logger.info(f"Found {len(unread_elements)} elements with unread label")
+                        unread_chats = unread_elements
                 except Exception as e:
-                    self.logger.error(f"Error waiting for WhatsApp Web to load: {e}")
-                    return
+                    self.logger.warning(f"Method 2 failed: {e}")
 
-            # Wait for chat list to be ready
-            page.wait_for_selector('[data-testid="chat-list"]', timeout=timeout)
-
-            # Find unread chats
-            unread_chats = page.query_selector_all('[data-testid="cell-frame-container"] span[aria-label*="unread"]')
+            # Method 3: Look for chat containers with unread class
+            if not unread_chats:
+                try:
+                    chat_containers = page.query_selector_all('[data-testid="cell-frame-container"]')
+                    self.logger.info(f"Found {len(chat_containers)} total chats, checking for unread...")
+                    # We'll check all chats for keywords instead
+                    unread_chats = chat_containers[:10]  # Check first 10 chats
+                except Exception as e:
+                    self.logger.warning(f"Method 3 failed: {e}")
 
             if not unread_chats:
                 self.logger.info("No unread messages found")
                 return
 
-            self.logger.info(f"Found {len(unread_chats)} unread chats")
+            self.logger.info(f"Checking {len(unread_chats)} chats for priority keywords...")
 
-            # Process each unread chat
+            # Process each chat
             new_messages = 0
             keywords = config.get('priority_keywords', [])
 
-            for i, unread_indicator in enumerate(unread_chats):
+            for i, chat_element in enumerate(unread_chats):
                 try:
-                    # Get the chat container
-                    chat_container = unread_indicator.evaluate_handle('el => el.closest("[data-testid=\'cell-frame-container\']")').as_element()
+                    # Get the chat container (parent element)
+                    try:
+                        chat_container = chat_element.evaluate_handle('el => el.closest("[data-testid=\'cell-frame-container\']")').as_element()
+                    except:
+                        # If element is already a container, use it directly
+                        chat_container = chat_element
 
                     if not chat_container:
                         continue
 
                     # Get chat text content
-                    chat_text = chat_container.inner_text().lower()
+                    try:
+                        chat_text = chat_container.inner_text().lower()
+                    except:
+                        self.logger.warning(f"Could not get text from chat {i}")
+                        continue
 
                     # Check if any priority keyword is present
                     has_keyword = any(keyword.lower() in chat_text for keyword in keywords)
@@ -226,12 +276,28 @@ class WhatsAppWatcher(BaseWatcher):
                     if not has_keyword:
                         continue
 
-                    # Extract chat details
-                    chat_name_elem = chat_container.query_selector('[data-testid="cell-frame-title"]')
-                    chat_name = chat_name_elem.inner_text() if chat_name_elem else "Unknown"
+                    self.logger.info(f"Found priority message in chat {i}!")
 
-                    message_preview_elem = chat_container.query_selector('[data-testid="last-msg-text"]')
-                    message_preview = message_preview_elem.inner_text() if message_preview_elem else ""
+                    # Extract chat details
+                    chat_name = "Unknown"
+                    message_preview = ""
+
+                    try:
+                        chat_name_elem = chat_container.query_selector('[data-testid="cell-frame-title"]')
+                        if chat_name_elem:
+                            chat_name = chat_name_elem.inner_text()
+                    except:
+                        pass
+
+                    try:
+                        message_preview_elem = chat_container.query_selector('[data-testid="last-msg-text"]')
+                        if message_preview_elem:
+                            message_preview = message_preview_elem.inner_text()
+                        else:
+                            # Fallback: use the full chat text
+                            message_preview = chat_text[:200]
+                    except:
+                        message_preview = chat_text[:200]
 
                     # Create unique message ID
                     message_id = f"{chat_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{i}"
