@@ -47,12 +47,23 @@ These actions can be taken automatically without approval:
 - ✅ Creating task files in /Needs_Action
 - ✅ Moving completed tasks to /Done
 - ✅ Updating Dashboard.md with summaries
+- ✅ Creating plan files in /Plans
+- ✅ Archiving old files to /Done (>30 days)
 
 ### Information Processing
 - ✅ Categorizing incoming messages
 - ✅ Creating draft responses (but NOT sending)
 - ✅ Logging activities to /Logs
 - ✅ Generating daily summaries
+- ✅ Generating multi-step plans for complex tasks
+- ✅ Monitoring Gmail inbox for new emails
+- ✅ Creating action files from emails
+
+### Analysis & Planning
+- ✅ Breaking down complex tasks into steps
+- ✅ Researching information (read-only)
+- ✅ Generating reports and summaries
+- ✅ Analyzing data and trends
 
 ---
 
@@ -60,21 +71,135 @@ These actions can be taken automatically without approval:
 
 These actions MUST have human approval:
 
-### Communications
-- ❌ Sending any email or message
-- ❌ Posting to social media
-- ❌ Replying to important contacts
-- ❌ Scheduling meetings
+### Communications (Sensitive Actions)
+- ❌ **Sending any email or message** (action_type: `email_send`)
+  - Approval timeout: 24 hours
+  - Auto-reject after timeout
+  - Requires: recipient, subject, body preview
+- ❌ **Posting to LinkedIn** (action_type: `linkedin_post`)
+  - Approval timeout: 24 hours
+  - Auto-reject after timeout
+  - Requires: post content, visibility settings
+- ❌ **Replying to important contacts**
+  - Approval timeout: 24 hours
+  - Requires: original message context
+- ❌ **Scheduling meetings with external parties**
+  - Approval timeout: 24 hours
+  - Requires: attendees, time, agenda
 
-### Financial
-- ❌ ANY payment or transaction
-- ❌ Subscription changes
-- ❌ Invoice generation (draft OK, send requires approval)
+### Financial (Sensitive Actions)
+- ❌ **ANY payment or transaction**
+  - Approval timeout: 24 hours
+  - Requires: amount, recipient, purpose
+- ❌ **Subscription changes**
+  - Approval timeout: 24 hours
+  - Requires: service name, cost impact
+- ❌ **Invoice generation** (draft OK, send requires approval)
+  - Approval timeout: 24 hours
+  - Requires: client, amount, line items
 
-### Data Operations
-- ❌ Deleting files outside /Inbox
-- ❌ Sharing data externally
-- ❌ Modifying system configurations
+### Data Operations (Sensitive Actions)
+- ❌ **Deleting files** (action_type: `file_delete`)
+  - Approval timeout: 24 hours
+  - Auto-reject after timeout
+  - Requires: file path, file size, reason
+- ❌ **Sharing data externally** (action_type: `data_export`)
+  - Approval timeout: 24 hours
+  - Requires: data description, recipient, purpose
+- ❌ **Modifying system configurations** (action_type: `system_command`)
+  - Approval timeout: 24 hours
+  - Requires: command details, expected impact
+- ❌ **External API calls** (action_type: `api_call_external`)
+  - Approval timeout: 24 hours
+  - Requires: API endpoint, data being sent
+
+### Large Data Operations
+- ❌ **Data operations >100MB**
+  - Approval timeout: 24 hours
+  - Requires: data size, operation type, destination
+
+---
+
+## 📋 Approval Workflow (Silver Tier)
+
+### How Approval Works
+
+1. **Action Classification**
+   - System automatically classifies actions as sensitive or non-sensitive
+   - Sensitive actions trigger approval workflow
+   - Classification based on action type and details
+
+2. **Approval Request Creation**
+   - System creates approval file in `Pending_Approval/` folder
+   - File contains action details and expiry timestamp
+   - User receives notification (if watchers are running)
+
+3. **User Review**
+   - User reviews approval request in Obsidian
+   - Checks action details, recipient, content
+   - Makes decision: Approve or Reject
+
+4. **Approval Actions**
+   - **To Approve**: Move file to `Approved/` folder
+   - **To Reject**: Move file to `Rejected/` folder (optionally add reason)
+   - **To Ignore**: Leave in `Pending_Approval/` (auto-rejects after 24 hours)
+
+5. **Execution**
+   - Approved actions are executed automatically
+   - Execution is logged in `Logs/approval.log`
+   - Completed actions move to `Done/` folder
+
+6. **Timeout Handling**
+   - Requests expire after 24 hours
+   - Expired requests are automatically rejected
+   - Rejection is logged with reason: "24-hour timeout expired"
+
+### Approval File Format
+
+```markdown
+---
+entity_type: approval_request
+request_id: req-20260204120000
+action_type: email_send
+action_description: Send email to client about project update
+created_timestamp: 2026-02-04T12:00:00Z
+approval_status: pending
+expiry_timestamp: 2026-02-05T12:00:00Z
+related_entity_id: draft-20260204120000
+---
+
+# Approval Request: Send email to client
+
+**Action Type**: email_send
+**Status**: ⏳ Pending Approval
+**Created**: 2026-02-04 12:00 PM
+**Expires**: 2026-02-05 12:00 PM (24 hours)
+
+## Action Details
+[Details here]
+
+## Approval Actions
+✅ To Approve: Move to Approved/ folder
+❌ To Reject: Move to Rejected/ folder
+```
+
+### Approval Logging
+
+All approvals and rejections are logged in `Logs/approval.log`:
+
+```
+[2026-02-04 12:00:00] CREATED: req-20260204120000 (email_send)
+[2026-02-04 12:30:00] APPROVED: req-20260204120000 (email_send) - Approver: user
+[2026-02-04 12:31:00] EXECUTED: req-20260204120000 (email_send) - Success: True
+```
+
+### Security Considerations
+
+- **24-Hour Timeout**: Prevents stale approvals from being executed
+- **Explicit Approval**: No default approvals or assumptions
+- **Audit Trail**: All actions logged with timestamps
+- **Folder-Based**: Simple, transparent approval mechanism
+- **Reversible**: Can reject even after initial approval (before execution)
 
 ---
 
