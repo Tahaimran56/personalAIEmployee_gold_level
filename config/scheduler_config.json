@@ -1,0 +1,28 @@
+{
+  "schedules": [
+    {
+      "schedule_id": "gmail-watcher-schedule",
+      "task_name": "Gmail Watcher",
+      "task_type": "watcher",
+      "task_command": "python AI_Employee_Vault/watchers/gmail_watcher.py",
+      "cron_expression": "*/5 * * * *",
+      "status": "active",
+      "platform": "windows"
+    },
+    {
+      "schedule_id": "linkedin-watcher-schedule",
+      "task_name": "LinkedIn Watcher",
+      "task_type": "watcher",
+      "task_command": "python AI_Employee_Vault/watchers/linkedin_watcher.py",
+      "cron_expression": "0 */1 * * *",
+      "status": "paused",
+      "platform": "windows"
+    }
+  ],
+  "global_settings": {
+    "timezone": "UTC",
+    "max_concurrent_tasks": 3,
+    "task_timeout_seconds": 300,
+    "log_retention_days": 90
+  }
+}

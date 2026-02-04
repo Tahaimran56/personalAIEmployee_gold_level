@@ -1,0 +1,11 @@
+{
+  "gmail_watcher": {
+    "check_interval_seconds": 300,
+    "max_emails_per_check": 100,
+    "priority_keywords": {
+      "urgent": ["URGENT", "ASAP", "CRITICAL", "EMERGENCY"],
+      "low": ["FYI", "No rush", "When you have time"]
+    },
+    "processed_emails_file": "AI_Employee_Vault/.state/processed_emails.json"
+  }
+}

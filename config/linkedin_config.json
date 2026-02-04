@@ -1,0 +1,10 @@
+{
+  "linkedin_service": {
+    "max_content_length": 3000,
+    "max_hashtags": 30,
+    "approval_required": true,
+    "approval_timeout_hours": 24,
+    "engagement_check_interval_hours": 1,
+    "default_visibility": "PUBLIC"
+  }
+}

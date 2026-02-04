@@ -1,0 +1,17 @@
+{
+  "server_name": "email-server",
+  "port": 3000,
+  "transport": {
+    "service": "gmail",
+    "auth": {
+      "type": "OAuth2",
+      "user": "${GMAIL_USER}",
+      "clientId": "${GMAIL_CLIENT_ID}",
+      "clientSecret": "${GMAIL_CLIENT_SECRET}",
+      "refreshToken": "${GMAIL_REFRESH_TOKEN}"
+    }
+  },
+  "approval_required": true,
+  "approval_timeout_hours": 24,
+  "max_attachment_size_mb": 25
+}
