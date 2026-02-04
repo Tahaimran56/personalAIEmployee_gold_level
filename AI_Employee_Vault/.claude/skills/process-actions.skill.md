@@ -197,9 +197,30 @@ Please send an update on the project status.
 - **Reason**: Prevent unauthorized communication
 
 ### linkedin_post
-- **Requires**: post content, visibility
+- **Requires**: post content, visibility, hashtags (optional)
 - **Timeout**: 24 hours
 - **Reason**: Maintain professional reputation
+- **Validation**: Max 3000 characters, max 30 hashtags
+- **Example**:
+  ```python
+  from AI_Employee_Vault.services.linkedin_service import LinkedInService
+
+  linkedin_service = LinkedInService(vault_path)
+
+  # Compose draft post
+  draft = linkedin_service.compose_draft_post(
+      content="Excited to share our latest project! 🚀",
+      visibility='PUBLIC',
+      hashtags=['AI', 'Automation', 'Python']
+  )
+
+  # Draft created in Pending_Approval/
+  # User moves to Approved/ to publish
+
+  # Publish approved post
+  result = linkedin_service.publish_post(draft['draft_id'])
+  print(f"Post published: {result['post_id']}")
+  ```
 
 ### file_delete
 - **Requires**: file path, file size, reason
