@@ -23,12 +23,19 @@
 
 **Python Dependencies**:
 ```bash
+# Install all dependencies at once
+pip install -r requirements.txt
+
+# Or install individually:
 pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-pip install linkedin-api
 pip install anthropic
 pip install schedule
 pip install python-dotenv
+pip install playwright
 pip install pytest
+
+# Install Playwright browsers (required for WhatsApp watcher)
+playwright install chromium
 ```
 
 **Node.js Dependencies** (for MCP server):
@@ -95,7 +102,53 @@ cd AI_Employee_Vault/mcp && npm list && cd ../..
 
 ---
 
-### Priority 3: Set Up LinkedIn API (30-45 minutes)
+### Priority 3: Set Up WhatsApp Watcher (15-20 minutes)
+
+**Steps**:
+
+1. **Install Playwright Browsers**
+   ```bash
+   # Install Chromium browser (~300MB download)
+   playwright install chromium
+   ```
+
+2. **Run WhatsApp Setup Script**
+   ```bash
+   python AI_Employee_Vault/setup/whatsapp_setup.py
+   ```
+   - Browser will open automatically
+   - You'll see WhatsApp Web with QR code
+
+3. **Scan QR Code**
+   - Open WhatsApp on your phone
+   - Tap Menu (⋮) or Settings
+   - Tap "Linked Devices"
+   - Tap "Link a Device"
+   - Scan the QR code in browser window
+   - Wait for login confirmation (up to 2 minutes)
+
+4. **Verify Session Saved**
+   - Setup script will confirm successful login
+   - Session saved in: `AI_Employee_Vault/.state/whatsapp_session/`
+   - No QR code needed for future runs
+
+**What You'll Get**:
+- WhatsApp Web session (persistent login)
+- Browser profile with saved credentials
+- Ready-to-use WhatsApp watcher
+
+**Configuration**:
+- Edit `config/whatsapp_config.json` to customize keywords
+- Default keywords: urgent, asap, invoice, payment, help, emergency, critical
+
+**Documentation**:
+- Full guide: `AI_Employee_Vault/docs/WhatsApp_Setup_Guide.md`
+
+---
+
+### Priority 4: Set Up LinkedIn API (OPTIONAL - Can Skip)
+
+**Note**: LinkedIn is optional for Silver tier. You can skip this if you're using Gmail + WhatsApp (2 watchers required).
 
 **Steps**:
 
@@ -141,7 +194,7 @@ cd AI_Employee_Vault/mcp && npm list && cd ../..
 
 ---
 
-### Priority 4: Set Up Claude API (5 minutes)
+### Priority 5: Set Up Claude API (5 minutes)
 
 **Steps**:
 
@@ -166,7 +219,7 @@ cd AI_Employee_Vault/mcp && npm list && cd ../..
 
 ---
 
-### Priority 5: Create config/.env File (5 minutes)
+### Priority 6: Create config/.env File (5 minutes)
 
 **Steps**:
 
@@ -197,7 +250,7 @@ cd AI_Employee_Vault/mcp && npm list && cd ../..
 
 ---
 
-### Priority 6: Copy Bronze Tier Files (10 minutes)
+### Priority 7: Copy Bronze Tier Files (10 minutes)
 
 **If you have Bronze tier in a separate directory**:
 
@@ -235,10 +288,11 @@ cp -r ../personalAIEmployee_bronze_level/AI_Employee_Vault/.claude AI_Employee_V
 | P1 | Install Python dependencies | 15 min | ⏳ TODO |
 | P1 | Install Node.js dependencies | 5 min | ⏳ TODO |
 | P2 | Set up Gmail API | 30-45 min | ⏳ TODO |
-| P3 | Set up LinkedIn API | 30-45 min | ⏳ TODO |
-| P4 | Set up Claude API | 5 min | ⏳ TODO |
-| P5 | Create config/.env file | 5 min | ⏳ TODO |
-| P6 | Copy Bronze tier files | 10 min | ⏳ TODO |
+| P3 | Set up WhatsApp Watcher | 15-20 min | ⏳ TODO |
+| P4 | Set up LinkedIn API (OPTIONAL) | 30-45 min | ⏸️ SKIP |
+| P5 | Set up Claude API | 5 min | ⏳ TODO |
+| P6 | Create config/.env file | 5 min | ⏳ TODO |
+| P7 | Copy Bronze tier files | 10 min | ⏳ TODO |
 
 **Total Estimated Time**: 2-3 hours
 

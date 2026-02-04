@@ -1,0 +1,31 @@
+{
+  "whatsapp_watcher": {
+    "check_interval_seconds": 30,
+    "max_messages_per_check": 50,
+    "priority_keywords": [
+      "urgent",
+      "asap",
+      "invoice",
+      "payment",
+      "help",
+      "emergency",
+      "critical",
+      "important",
+      "deadline",
+      "today",
+      "now"
+    ],
+    "headless": false,
+    "timeout_seconds": 30
+  },
+  "session": {
+    "session_path": ".state/whatsapp_session",
+    "auto_login": true,
+    "keep_alive": true
+  },
+  "notifications": {
+    "enabled": true,
+    "log_all_messages": false,
+    "log_priority_only": true
+  }
+}

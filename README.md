@@ -22,19 +22,19 @@ Silver tier adds **6 major capabilities** to your AI Employee:
 - Duplicate prevention (never processes the same email twice)
 - Runs every 5 minutes on schedule
 
-### 2. 📤 Email Sending with Approval
+### 2. 💬 WhatsApp Monitoring
+- Monitors WhatsApp Web for new messages
+- Keyword-based priority detection (urgent, invoice, payment, help)
+- Session persistence (no QR code scan every time)
+- Creates action files for priority messages
+- Runs every minute on schedule
+
+### 3. 📤 Email Sending with Approval
 - Drafts email responses based on action files
 - **Human-in-the-loop approval** required before sending
 - MCP email server with OAuth2 SMTP
 - Supports HTML formatting and attachments
 - Logs all sent emails with timestamps
-
-### 3. 💼 LinkedIn Integration
-- Drafts LinkedIn posts for your profile
-- **Approval workflow** prevents unauthorized posts
-- Validates content (3000 character limit, hashtags)
-- Tracks engagement metrics (views, likes, comments, shares)
-- Logs all published posts
 
 ### 4. 🧠 Multi-Step Task Planning
 - Detects complex tasks and generates step-by-step plans
@@ -93,8 +93,8 @@ Silver Tier Architecture
 │
 └── Silver Tier Extensions
     ├── Gmail Watcher (email monitoring)
+    ├── WhatsApp Watcher (message monitoring)
     ├── Email Service (MCP server + approval)
-    ├── LinkedIn Service (posts + approval)
     ├── Reasoning Service (Claude API planning)
     ├── Scheduler Service (automated execution)
     └── Enhanced Approval Workflow

@@ -10,6 +10,15 @@
       "platform": "windows"
     },
     {
+      "schedule_id": "whatsapp-watcher-schedule",
+      "task_name": "WhatsApp Watcher",
+      "task_type": "watcher",
+      "task_command": "python AI_Employee_Vault/watchers/whatsapp_watcher.py",
+      "cron_expression": "*/1 * * * *",
+      "status": "active",
+      "platform": "windows"
+    },
+    {
       "schedule_id": "linkedin-watcher-schedule",
       "task_name": "LinkedIn Watcher",
       "task_type": "watcher",

@@ -18,6 +18,9 @@ requests>=2.31.0
 # Environment Variables
 python-dotenv>=1.0.0
 
+# WhatsApp Web Automation
+playwright>=1.40.0
+
 # Testing (optional)
 pytest>=7.4.0
 pytest-cov>=4.1.0
