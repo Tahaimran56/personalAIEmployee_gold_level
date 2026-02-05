@@ -238,15 +238,47 @@ class SocialMediaService:
         Returns:
             dict: Publishing result
         """
-        # TODO: Call Facebook MCP server
-        # For now, return placeholder
+        import requests
+
+        facebook_mcp_url = os.getenv("FACEBOOK_MCP_URL", "http://localhost:3101")
+        api_key = os.getenv("MCP_API_KEY")
+
         logger.info(f"Publishing to Facebook: {text[:50]}...")
 
-        return {
-            "success": True,
-            "post_id": "fb_placeholder_123",
-            "permalink_url": "https://facebook.com/placeholder"
-        }
+        try:
+            payload = {
+                "message": text,
+                "published": True
+            }
+
+            if image_url:
+                payload["image_url"] = image_url
+
+            if link_url:
+                payload["link"] = link_url
+
+            response = requests.post(
+                f"{facebook_mcp_url}/posts",
+                json=payload,
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            return {
+                "success": True,
+                "post_id": data.get("post_id"),
+                "permalink_url": data.get("permalink_url")
+            }
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to publish to Facebook: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def _publish_to_instagram(
         self,
@@ -265,15 +297,83 @@ class SocialMediaService:
         Returns:
             dict: Publishing result
         """
-        # TODO: Call Instagram MCP server
-        # For now, return placeholder
+        import requests
+        import time
+
+        instagram_mcp_url = os.getenv("INSTAGRAM_MCP_URL", "http://localhost:3102")
+        api_key = os.getenv("MCP_API_KEY")
+
         logger.info(f"Publishing to Instagram: {text[:50]}...")
 
-        return {
-            "success": True,
-            "media_id": "ig_placeholder_456",
-            "permalink": "https://instagram.com/p/placeholder"
-        }
+        try:
+            # Add hashtags to caption if provided
+            caption = text
+            if hashtags:
+                caption += "\n\n" + " ".join(f"#{tag}" for tag in hashtags)
+
+            # Step 1: Create media container
+            container_payload = {
+                "image_url": image_url,
+                "caption": caption
+            }
+
+            container_response = requests.post(
+                f"{instagram_mcp_url}/media",
+                json=container_payload,
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            container_response.raise_for_status()
+            container_data = container_response.json()
+            container_id = container_data.get("container_id")
+
+            # Wait for container to be ready (Instagram requires this)
+            max_wait = 30  # seconds
+            wait_interval = 2  # seconds
+            elapsed = 0
+
+            while elapsed < max_wait:
+                if container_data.get("status") == "FINISHED":
+                    break
+                time.sleep(wait_interval)
+                elapsed += wait_interval
+
+                # Check status again
+                status_response = requests.get(
+                    f"{instagram_mcp_url}/media/{container_id}",
+                    headers={"X-API-Key": api_key},
+                    timeout=10
+                )
+                container_data = status_response.json()
+
+            # Step 2: Publish media container
+            publish_payload = {
+                "container_id": container_id
+            }
+
+            publish_response = requests.post(
+                f"{instagram_mcp_url}/media/publish",
+                json=publish_payload,
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            publish_response.raise_for_status()
+            publish_data = publish_response.json()
+
+            return {
+                "success": True,
+                "media_id": publish_data.get("media_id"),
+                "permalink": publish_data.get("permalink")
+            }
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to publish to Instagram: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def _publish_to_twitter(
         self,
@@ -292,15 +392,48 @@ class SocialMediaService:
         Returns:
             dict: Publishing result
         """
-        # TODO: Call Twitter MCP server
-        # For now, return placeholder
+        import requests
+
+        twitter_mcp_url = os.getenv("TWITTER_MCP_URL", "http://localhost:3103")
+        api_key = os.getenv("MCP_API_KEY")
+
         logger.info(f"Publishing to Twitter: {text[:50]}...")
 
-        return {
-            "success": True,
-            "tweet_id": "tw_placeholder_789",
-            "tweet_url": "https://twitter.com/user/status/placeholder"
-        }
+        try:
+            # Add hashtags to text if provided
+            tweet_text = text
+            if hashtags:
+                tweet_text += " " + " ".join(f"#{tag}" for tag in hashtags)
+
+            payload = {
+                "text": tweet_text
+            }
+
+            if image_url:
+                payload["media_url"] = image_url
+
+            response = requests.post(
+                f"{twitter_mcp_url}/tweets",
+                json=payload,
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            return {
+                "success": True,
+                "tweet_id": data.get("tweet_id"),
+                "tweet_url": data.get("tweet_url")
+            }
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to publish to Twitter: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def get_metrics(
         self,
@@ -333,33 +466,84 @@ class SocialMediaService:
 
     def _get_facebook_metrics(self, post_id: str) -> Dict[str, Any]:
         """Get Facebook post metrics."""
-        # TODO: Call Facebook MCP server
-        return {
-            "likes": 0,
-            "comments": 0,
-            "shares": 0,
-            "reach": 0
-        }
+        import requests
+
+        facebook_mcp_url = os.getenv("FACEBOOK_MCP_URL", "http://localhost:3101")
+        api_key = os.getenv("MCP_API_KEY")
+
+        try:
+            response = requests.get(
+                f"{facebook_mcp_url}/posts/{post_id}/insights",
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to get Facebook metrics: {e}")
+            return {
+                "error": str(e),
+                "likes": 0,
+                "comments": 0,
+                "shares": 0,
+                "reach": 0
+            }
 
     def _get_instagram_metrics(self, media_id: str) -> Dict[str, Any]:
         """Get Instagram media metrics."""
-        # TODO: Call Instagram MCP server
-        return {
-            "likes": 0,
-            "comments": 0,
-            "saves": 0,
-            "reach": 0
-        }
+        import requests
+
+        instagram_mcp_url = os.getenv("INSTAGRAM_MCP_URL", "http://localhost:3102")
+        api_key = os.getenv("MCP_API_KEY")
+
+        try:
+            response = requests.get(
+                f"{instagram_mcp_url}/media/{media_id}/insights",
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to get Instagram metrics: {e}")
+            return {
+                "error": str(e),
+                "likes": 0,
+                "comments": 0,
+                "saves": 0,
+                "reach": 0
+            }
 
     def _get_twitter_metrics(self, tweet_id: str) -> Dict[str, Any]:
         """Get Twitter tweet metrics."""
-        # TODO: Call Twitter MCP server
-        return {
-            "likes": 0,
-            "retweets": 0,
-            "replies": 0,
-            "impressions": 0
-        }
+        import requests
+
+        twitter_mcp_url = os.getenv("TWITTER_MCP_URL", "http://localhost:3103")
+        api_key = os.getenv("MCP_API_KEY")
+
+        try:
+            response = requests.get(
+                f"{twitter_mcp_url}/tweets/{tweet_id}/metrics",
+                headers={"X-API-Key": api_key},
+                timeout=30
+            )
+
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to get Twitter metrics: {e}")
+            return {
+                "error": str(e),
+                "likes": 0,
+                "retweets": 0,
+                "replies": 0,
+                "impressions": 0
+            }
 
     def _queue_failed_post(
         self,
