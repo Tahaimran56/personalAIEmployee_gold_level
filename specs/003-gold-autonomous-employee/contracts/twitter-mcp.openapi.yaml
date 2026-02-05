@@ -1,0 +1,448 @@
+openapi: 3.0.3
+info:
+  title: Twitter MCP Server API
+  description: MCP server for Twitter API v2 integration
+  version: 1.0.0
+  contact:
+    name: Gold Tier AI Employee
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3103
+    description: Local MCP server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if MCP server and Twitter API connection are healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  twitter_connected:
+                    type: boolean
+                  token_valid:
+                    type: boolean
+                  rate_limit_remaining:
+                    type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Server is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tweets:
+    post:
+      summary: Create tweet
+      description: Post a tweet to Twitter
+      operationId: createTweet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TweetRequest'
+      responses:
+        '201':
+          description: Tweet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TweetResponse'
+        '400':
+          description: Invalid request (e.g., text too long, duplicate tweet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication failed (invalid or expired token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded (50 tweets per 24 hours for standard access)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+        '503':
+          description: Twitter API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tweets/{tweet_id}:
+    get:
+      summary: Get tweet details
+      description: Retrieve details of a specific tweet
+      operationId: getTweet
+      parameters:
+        - name: tweet_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: expansions
+          in: query
+          schema:
+            type: string
+            enum: [author_id, referenced_tweets.id, attachments.media_keys]
+          description: Optional expansions to include
+        - name: tweet.fields
+          in: query
+          schema:
+            type: string
+            enum: [created_at, public_metrics, entities]
+          description: Optional tweet fields to include
+      responses:
+        '200':
+          description: Tweet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TweetResponse'
+        '404':
+          description: Tweet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete tweet
+      description: Delete a tweet
+      operationId: deleteTweet
+      parameters:
+        - name: tweet_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Tweet deleted successfully
+        '404':
+          description: Tweet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tweets/{tweet_id}/metrics:
+    get:
+      summary: Get tweet engagement metrics
+      description: Retrieve engagement metrics for a tweet (likes, retweets, replies, impressions)
+      operationId: getTweetMetrics
+      parameters:
+        - name: tweet_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tweet engagement metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TweetMetrics'
+        '403':
+          description: Elevated access required for metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tweet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me:
+    get:
+      summary: Get authenticated user information
+      description: Retrieve information about the authenticated Twitter user
+      operationId: getUserInfo
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+
+  /rate_limit_status:
+    get:
+      summary: Get rate limit status
+      description: Check current rate limit status for tweet creation
+      operationId: getRateLimitStatus
+      responses:
+        '200':
+          description: Rate limit status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitStatus'
+
+components:
+  schemas:
+    TweetRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: Tweet text content
+          minLength: 1
+          maxLength: 280
+        media_ids:
+          type: array
+          description: Media IDs to attach (must be uploaded separately)
+          maxItems: 4
+          items:
+            type: string
+        reply_settings:
+          type: string
+          enum: [everyone, mentionedUsers, following]
+          default: everyone
+          description: Who can reply to this tweet
+        quote_tweet_id:
+          type: string
+          description: ID of tweet to quote (optional)
+        poll:
+          type: object
+          description: Poll to attach to tweet (optional)
+          properties:
+            options:
+              type: array
+              minItems: 2
+              maxItems: 4
+              items:
+                type: string
+                maxLength: 25
+            duration_minutes:
+              type: integer
+              minimum: 5
+              maximum: 10080
+
+    TweetResponse:
+      type: object
+      properties:
+        tweet_id:
+          type: string
+          description: Twitter tweet ID
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        author_id:
+          type: string
+        conversation_id:
+          type: string
+        entities:
+          type: object
+          description: Extracted entities (hashtags, mentions, URLs)
+          properties:
+            hashtags:
+              type: array
+              items:
+                type: object
+                properties:
+                  start:
+                    type: integer
+                  end:
+                    type: integer
+                  tag:
+                    type: string
+            mentions:
+              type: array
+              items:
+                type: object
+                properties:
+                  start:
+                    type: integer
+                  end:
+                    type: integer
+                  username:
+                    type: string
+            urls:
+              type: array
+              items:
+                type: object
+                properties:
+                  start:
+                    type: integer
+                  end:
+                    type: integer
+                  url:
+                    type: string
+                  expanded_url:
+                    type: string
+        public_metrics:
+          type: object
+          properties:
+            retweet_count:
+              type: integer
+            reply_count:
+              type: integer
+            like_count:
+              type: integer
+            quote_count:
+              type: integer
+        tweet_url:
+          type: string
+          format: uri
+          description: Public URL to view the tweet
+
+    TweetMetrics:
+      type: object
+      properties:
+        tweet_id:
+          type: string
+        likes:
+          type: integer
+          description: Number of likes
+        retweets:
+          type: integer
+          description: Number of retweets
+        replies:
+          type: integer
+          description: Number of replies
+        quotes:
+          type: integer
+          description: Number of quote tweets
+        impressions:
+          type: integer
+          description: Number of times the tweet was viewed (requires elevated access)
+        engagement:
+          type: integer
+          description: Total engagement (likes + retweets + replies + quotes)
+        engagement_rate:
+          type: number
+          description: Engagement rate as percentage (engagement / impressions * 100)
+        retrieved_at:
+          type: string
+          format: date-time
+
+    UserInfo:
+      type: object
+      properties:
+        user_id:
+          type: string
+        username:
+          type: string
+        name:
+          type: string
+        profile_image_url:
+          type: string
+          format: uri
+        followers_count:
+          type: integer
+        following_count:
+          type: integer
+        tweet_count:
+          type: integer
+        verified:
+          type: boolean
+        description:
+          type: string
+
+    RateLimitStatus:
+      type: object
+      properties:
+        limit:
+          type: integer
+          description: Maximum tweets per 24 hours (50 for standard, 300 for elevated)
+        remaining:
+          type: integer
+          description: Remaining tweets in current window
+        reset_at:
+          type: string
+          format: date-time
+          description: When the rate limit resets
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        error_code:
+          type: integer
+          description: Twitter API error code
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+
+    RateLimitError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            retry_after:
+              type: integer
+              description: Seconds to wait before retrying
+            rate_limit:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  description: Maximum tweets per 24 hours
+                remaining:
+                  type: integer
+                  description: Remaining tweets in current window
+                reset_at:
+                  type: string
+                  format: date-time
+                  description: When the rate limit resets
+
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      description: OAuth 2.0 authentication for Twitter API v2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://twitter.com/i/oauth2/authorize
+          tokenUrl: https://api.twitter.com/2/oauth2/token
+          scopes:
+            tweet.read: Read tweets
+            tweet.write: Create and delete tweets
+            users.read: Read user information
+            offline.access: Refresh token access
+    BearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token authentication
+
+security:
+  - OAuth2: [tweet.read, tweet.write, users.read]
+  - BearerToken: []

@@ -1,0 +1,399 @@
+openapi: 3.0.3
+info:
+  title: Instagram MCP Server API
+  description: MCP server for Instagram Graph API integration (via Facebook Graph API)
+  version: 1.0.0
+  contact:
+    name: Gold Tier AI Employee
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3102
+    description: Local MCP server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if MCP server and Instagram API connection are healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  instagram_connected:
+                    type: boolean
+                  token_valid:
+                    type: boolean
+                  token_expires_at:
+                    type: string
+                    format: date-time
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Server is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /media:
+    post:
+      summary: Create Instagram media container
+      description: Create a media container (first step of two-step publishing process)
+      operationId: createMediaContainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaContainerRequest'
+      responses:
+        '201':
+          description: Media container created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaContainerResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication failed (invalid or expired token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+        '503':
+          description: Instagram API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /media/publish:
+    post:
+      summary: Publish Instagram media
+      description: Publish a media container (second step of two-step publishing process)
+      operationId: publishMedia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishMediaRequest'
+      responses:
+        '201':
+          description: Media published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishMediaResponse'
+        '400':
+          description: Invalid request or container not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Media container not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /media/{media_id}:
+    get:
+      summary: Get media details
+      description: Retrieve details of a specific Instagram media post
+      operationId: getMedia
+      parameters:
+        - name: media_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaResponse'
+        '404':
+          description: Media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete media
+      description: Delete an Instagram media post
+      operationId: deleteMedia
+      parameters:
+        - name: media_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Media deleted successfully
+        '404':
+          description: Media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /media/{media_id}/insights:
+    get:
+      summary: Get media engagement metrics
+      description: Retrieve engagement metrics for a media post (likes, comments, saves, reach)
+      operationId: getMediaInsights
+      parameters:
+        - name: media_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media engagement metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaInsights'
+        '404':
+          description: Media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /account/info:
+    get:
+      summary: Get account information
+      description: Retrieve information about the authenticated Instagram Business Account
+      operationId: getAccountInfo
+      responses:
+        '200':
+          description: Account information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountInfo'
+
+components:
+  schemas:
+    MediaContainerRequest:
+      type: object
+      required:
+        - image_url
+        - caption
+      properties:
+        image_url:
+          type: string
+          format: uri
+          description: URL of image to post (must be publicly accessible, JPEG or PNG)
+        caption:
+          type: string
+          description: Post caption (max 2200 characters)
+          minLength: 1
+          maxLength: 2200
+        location_id:
+          type: string
+          description: Facebook Page location ID (optional)
+        user_tags:
+          type: array
+          description: Users to tag in the photo (optional)
+          items:
+            type: object
+            properties:
+              username:
+                type: string
+              x:
+                type: number
+                minimum: 0
+                maximum: 1
+              y:
+                type: number
+                minimum: 0
+                maximum: 1
+
+    MediaContainerResponse:
+      type: object
+      properties:
+        container_id:
+          type: string
+          description: Instagram media container ID
+        status:
+          type: string
+          enum: [IN_PROGRESS, FINISHED, ERROR]
+          description: Container processing status
+        status_code:
+          type: string
+          description: Detailed status code
+
+    PublishMediaRequest:
+      type: object
+      required:
+        - container_id
+      properties:
+        container_id:
+          type: string
+          description: Media container ID from create step
+
+    PublishMediaResponse:
+      type: object
+      properties:
+        media_id:
+          type: string
+          description: Instagram media ID
+        permalink:
+          type: string
+          format: uri
+          description: Public URL to view the post
+
+    MediaResponse:
+      type: object
+      properties:
+        media_id:
+          type: string
+        media_type:
+          type: string
+          enum: [IMAGE, VIDEO, CAROUSEL_ALBUM]
+        caption:
+          type: string
+        permalink:
+          type: string
+          format: uri
+        timestamp:
+          type: string
+          format: date-time
+        thumbnail_url:
+          type: string
+          format: uri
+
+    MediaInsights:
+      type: object
+      properties:
+        media_id:
+          type: string
+        likes:
+          type: integer
+          description: Number of likes
+        comments:
+          type: integer
+          description: Number of comments
+        saves:
+          type: integer
+          description: Number of saves
+        reach:
+          type: integer
+          description: Number of unique accounts that saw the post
+        impressions:
+          type: integer
+          description: Total number of times the post was seen
+        engagement:
+          type: integer
+          description: Total engagement (likes + comments + saves)
+        engagement_rate:
+          type: number
+          description: Engagement rate as percentage (engagement / reach * 100)
+        retrieved_at:
+          type: string
+          format: date-time
+
+    AccountInfo:
+      type: object
+      properties:
+        account_id:
+          type: string
+        username:
+          type: string
+        name:
+          type: string
+        profile_picture_url:
+          type: string
+          format: uri
+        followers_count:
+          type: integer
+        follows_count:
+          type: integer
+        media_count:
+          type: integer
+        biography:
+          type: string
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        error_subcode:
+          type: integer
+          description: Instagram API error subcode
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+
+    RateLimitError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            retry_after:
+              type: integer
+              description: Seconds to wait before retrying
+            rate_limit:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  description: Maximum requests per hour
+                remaining:
+                  type: integer
+                  description: Remaining requests in current window
+                reset_at:
+                  type: string
+                  format: date-time
+                  description: When the rate limit resets
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for MCP server authentication
+
+security:
+  - ApiKey: []

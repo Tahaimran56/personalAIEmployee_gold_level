@@ -1,0 +1,515 @@
+openapi: 3.0.3
+info:
+  title: Odoo MCP Server API
+  description: MCP server for Odoo Community Edition v19+ accounting integration
+  version: 1.0.0
+  contact:
+    name: Gold Tier AI Employee
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3100
+    description: Local MCP server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if MCP server and Odoo connection are healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  odoo_connected:
+                    type: boolean
+                  odoo_version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Server is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoices:
+    post:
+      summary: Create invoice
+      description: Create a new invoice in Odoo accounting system
+      operationId: createInvoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceRequest'
+      responses:
+        '201':
+          description: Invoice created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Odoo service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: List invoices
+      description: Retrieve invoices with optional filtering
+      operationId: listInvoices
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: customer_id
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, pending, posted, paid, cancelled]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InvoiceResponse'
+                  total_count:
+                    type: integer
+                  has_more:
+                    type: boolean
+
+  /invoices/{invoice_id}:
+    get:
+      summary: Get invoice
+      description: Retrieve a specific invoice by ID
+      operationId: getInvoice
+      parameters:
+        - name: invoice_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceResponse'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments:
+    post:
+      summary: Record payment
+      description: Record a payment received from a customer
+      operationId: createPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '201':
+          description: Payment recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Odoo service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /expenses:
+    post:
+      summary: Record expense
+      description: Record a business expense in Odoo
+      operationId: createExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseRequest'
+      responses:
+        '201':
+          description: Expense recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Odoo service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: List expenses
+      description: Retrieve expenses with optional filtering
+      operationId: listExpenses
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expenses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExpenseResponse'
+                  total_count:
+                    type: integer
+                  has_more:
+                    type: boolean
+
+  /transactions/summary:
+    get:
+      summary: Get transaction summary
+      description: Get aggregated transaction data for a date range
+      operationId: getTransactionSummary
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transaction summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionSummary'
+
+components:
+  schemas:
+    InvoiceRequest:
+      type: object
+      required:
+        - customer_id
+        - invoice_date
+        - line_items
+      properties:
+        customer_id:
+          type: integer
+          description: Odoo partner ID
+        customer_name:
+          type: string
+          description: Customer name (for reference)
+        invoice_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        line_items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - description
+              - quantity
+              - unit_price
+            properties:
+              product_id:
+                type: integer
+              description:
+                type: string
+              quantity:
+                type: number
+                minimum: 0
+              unit_price:
+                type: number
+                minimum: 0
+              tax_rate:
+                type: number
+                minimum: 0
+                maximum: 100
+        notes:
+          type: string
+
+    InvoiceResponse:
+      type: object
+      properties:
+        odoo_record_id:
+          type: integer
+        invoice_number:
+          type: string
+        customer_id:
+          type: integer
+        customer_name:
+          type: string
+        invoice_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        subtotal:
+          type: number
+        tax_amount:
+          type: number
+        total_amount:
+          type: number
+        status:
+          type: string
+          enum: [draft, pending, posted, paid, cancelled]
+        created_at:
+          type: string
+          format: date-time
+
+    PaymentRequest:
+      type: object
+      required:
+        - invoice_id
+        - amount
+        - payment_date
+        - payment_method
+      properties:
+        invoice_id:
+          type: integer
+          description: Odoo invoice ID to apply payment to
+        amount:
+          type: number
+          minimum: 0
+        payment_date:
+          type: string
+          format: date
+        payment_method:
+          type: string
+          enum: [cash, check, bank_transfer, credit_card, paypal, other]
+        reference:
+          type: string
+          description: Payment reference number
+
+    PaymentResponse:
+      type: object
+      properties:
+        odoo_record_id:
+          type: integer
+        invoice_id:
+          type: integer
+        amount:
+          type: number
+        payment_date:
+          type: string
+          format: date
+        payment_method:
+          type: string
+        status:
+          type: string
+          enum: [draft, posted]
+        created_at:
+          type: string
+          format: date-time
+
+    ExpenseRequest:
+      type: object
+      required:
+        - amount
+        - expense_date
+        - category
+        - description
+      properties:
+        amount:
+          type: number
+          minimum: 0
+        expense_date:
+          type: string
+          format: date
+        category:
+          type: string
+          description: Expense category (e.g., "Office Supplies", "Travel")
+        vendor_name:
+          type: string
+        description:
+          type: string
+        accounting_code:
+          type: string
+          description: Chart of accounts code
+
+    ExpenseResponse:
+      type: object
+      properties:
+        odoo_record_id:
+          type: integer
+        amount:
+          type: number
+        expense_date:
+          type: string
+          format: date
+        category:
+          type: string
+        vendor_name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [draft, posted]
+        created_at:
+          type: string
+          format: date-time
+
+    TransactionSummary:
+      type: object
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        revenue:
+          type: object
+          properties:
+            total:
+              type: number
+            invoice_count:
+              type: integer
+            payment_count:
+              type: integer
+            average_invoice_value:
+              type: number
+        expenses:
+          type: object
+          properties:
+            total:
+              type: number
+            expense_count:
+              type: integer
+            by_category:
+              type: array
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  amount:
+                    type: number
+        net_income:
+          type: number
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for MCP server authentication
+
+security:
+  - ApiKey: []
