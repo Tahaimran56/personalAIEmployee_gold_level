@@ -1,0 +1,55 @@
+{
+  "facebook": {
+    "api_version": "v19.0",
+    "base_url": "https://graph.facebook.com",
+    "rate_limit": {
+      "calls_per_hour": 200,
+      "retry_after_seconds": 3600
+    },
+    "post_defaults": {
+      "published": true,
+      "allow_comments": true
+    }
+  },
+  "instagram": {
+    "api_version": "v19.0",
+    "base_url": "https://graph.facebook.com",
+    "rate_limit": {
+      "calls_per_hour": 200,
+      "retry_after_seconds": 3600
+    },
+    "post_requirements": {
+      "image_required": true,
+      "caption_max_length": 2200,
+      "supported_formats": ["JPEG", "PNG"]
+    },
+    "publishing_process": {
+      "step_1": "create_media_container",
+      "step_2": "publish_media",
+      "wait_between_steps_seconds": 5
+    }
+  },
+  "twitter": {
+    "api_version": "2",
+    "base_url": "https://api.twitter.com",
+    "rate_limit": {
+      "tweets_per_24_hours": 50,
+      "tweets_per_24_hours_elevated": 300
+    },
+    "post_requirements": {
+      "text_max_length": 280,
+      "media_max_count": 4
+    }
+  },
+  "approval_workflow": {
+    "require_approval": true,
+    "approval_folder": "AI_Employee_Vault/Social_Media/Pending_Approval",
+    "published_folder": "AI_Employee_Vault/Social_Media/Published",
+    "failed_folder": "AI_Employee_Vault/Social_Media/Failed"
+  },
+  "metrics_retrieval": {
+    "wait_hours_after_publish": 24,
+    "retrieve_daily": true,
+    "retrieve_time": "09:00"
+  }
+}

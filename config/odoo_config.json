@@ -1,0 +1,30 @@
+{
+  "odoo_url": "http://localhost:8069",
+  "database": "gold_tier_accounting",
+  "username": "ai_employee",
+  "connection_timeout": 30,
+  "retry_attempts": 3,
+  "retry_delay_seconds": 5,
+  "accounting_module": {
+    "chart_of_accounts": "US GAAP",
+    "default_currency": "USD",
+    "fiscal_year_start": "01-01"
+  },
+  "transaction_defaults": {
+    "invoice_payment_term_days": 30,
+    "expense_categories": [
+      "Office Supplies",
+      "Travel",
+      "Software Subscriptions",
+      "Marketing",
+      "Professional Services",
+      "Utilities",
+      "Other"
+    ]
+  },
+  "sync_settings": {
+    "auto_sync": true,
+    "sync_interval_minutes": 5,
+    "queue_on_failure": true
+  }
+}

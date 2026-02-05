@@ -1,0 +1,30 @@
+{
+  "autonomous_loop": {
+    "enabled": true,
+    "max_iterations": 10,
+    "timeout_minutes_per_iteration": 5,
+    "stop_hook_enabled": true
+  },
+  "task_tracking": {
+    "state_file_location": "AI_Employee_Vault/In_Progress",
+    "completed_folder": "AI_Employee_Vault/Done",
+    "blocked_folder": "AI_Employee_Vault/Blocked",
+    "needs_action_folder": "AI_Employee_Vault/Needs_Action"
+  },
+  "iteration_behavior": {
+    "continue_on_step_completion": true,
+    "stop_on_error": true,
+    "stop_on_user_input_required": true,
+    "stop_on_max_iterations": true
+  },
+  "logging": {
+    "log_each_iteration": true,
+    "log_step_completion": true,
+    "log_file": "AI_Employee_Vault/Audit_Logs"
+  },
+  "error_handling": {
+    "mark_task_blocked_on_error": true,
+    "notify_user_on_block": true,
+    "retry_blocked_tasks": false
+  }
+}
