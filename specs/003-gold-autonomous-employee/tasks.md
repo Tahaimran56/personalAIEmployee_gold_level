@@ -233,10 +233,10 @@
 - [x] T114 [P] Add error rate monitoring to all MCP servers
 - [x] T115 [P] Implement graceful shutdown for all MCP servers
 - [x] T116 [P] Add configuration validation on startup for all services
-- [ ] T117 Run quickstart.md validation: follow setup guide and verify all features work
-- [ ] T118 Code cleanup: remove debug logging, optimize imports, format code
-- [ ] T119 Security audit: verify no credentials in code, sensitive data redacted in logs
-- [ ] T120 Performance optimization: profile CEO Briefing generation, optimize slow queries
+- [x] T117 Run quickstart.md validation: follow setup guide and verify all features work
+- [x] T118 Code cleanup: remove debug logging, optimize imports, format code
+- [x] T119 Security audit: verify no credentials in code, sensitive data redacted in logs
+- [x] T120 Performance optimization: profile CEO Briefing generation, optimize slow queries
 
 ---
 
