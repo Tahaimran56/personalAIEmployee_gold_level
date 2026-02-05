@@ -26,10 +26,31 @@ const {
   handleRateLimitError,
   logRequest,
   errorHandler,
-  asyncHandler
+  asyncHandler,
+  performanceMonitoring,
+  getPerformanceMetrics,
+  getErrorStats,
+  setupGracefulShutdown,
+  validateConfig,
+  trackError
 } = require('./shared-utils');
 
 require('dotenv').config();
+
+// Validate configuration on startup
+const configValidation = validateConfig([
+  'TWITTER_API_KEY',
+  'TWITTER_API_SECRET',
+  'TWITTER_ACCESS_TOKEN',
+  'TWITTER_ACCESS_SECRET',
+  'TWITTER_BEARER_TOKEN',
+  'MCP_API_KEY'
+]);
+
+if (!configValidation.valid) {
+  logger.error('Configuration validation failed', { missing: configValidation.missing });
+  process.exit(1);
+}
 
 // Initialize Express app
 const app = express();
@@ -69,6 +90,7 @@ const token = {
 // Middleware
 app.use(express.json());
 app.use(logRequest);
+app.use(performanceMonitoring);
 
 // ============================================
 // Health Check Endpoint
@@ -425,19 +447,48 @@ app.get('/rate_limit_status', authenticateApiKey, asyncHandler(async (req, res) 
 }));
 
 // ============================================
+// Metrics Endpoint
+// ============================================
+
+/**
+ * GET /metrics - Get performance metrics
+ */
+app.get('/metrics', authenticateApiKey, (req, res) => {
+  const metrics = getPerformanceMetrics();
+  const errorStats = getErrorStats();
+
+  res.json({
+    performance: metrics,
+    errors: errorStats
+  });
+});
+
+// ============================================
 // Error Handler
 // ============================================
 
-app.use(errorHandler);
+app.use((err, req, res, next) => {
+  trackError(err, {
+    path: req.path,
+    method: req.method
+  });
+  errorHandler(err, req, res, next);
+});
 
 // ============================================
 // Start Server
 // ============================================
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info(`Twitter MCP Server listening on port ${PORT}`, { service: 'twitter-mcp' });
   console.log(`✓ Twitter MCP Server running on http://localhost:${PORT}`);
   console.log(`✓ Health check: http://localhost:${PORT}/health`);
+  console.log(`✓ Metrics: http://localhost:${PORT}/metrics`);
+});
+
+// Setup graceful shutdown
+setupGracefulShutdown(server, async () => {
+  logger.info('Twitter MCP Server cleanup complete');
 });
 
 module.exports = app;

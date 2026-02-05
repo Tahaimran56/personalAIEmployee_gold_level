@@ -276,6 +276,312 @@ function asyncHandler(fn) {
 }
 
 // ============================================
+// Performance Monitoring
+// ============================================
+
+/**
+ * Performance metrics storage
+ */
+const performanceMetrics = {
+  requests: {
+    total: 0,
+    success: 0,
+    error: 0
+  },
+  responseTime: {
+    total: 0,
+    count: 0,
+    min: Infinity,
+    max: 0,
+    avg: 0
+  },
+  endpoints: {}
+};
+
+/**
+ * Middleware to track performance metrics
+ */
+function performanceMonitoring(req, res, next) {
+  const startTime = Date.now();
+  const endpoint = `${req.method} ${req.path}`;
+
+  // Initialize endpoint metrics if not exists
+  if (!performanceMetrics.endpoints[endpoint]) {
+    performanceMetrics.endpoints[endpoint] = {
+      count: 0,
+      success: 0,
+      error: 0,
+      totalTime: 0,
+      avgTime: 0,
+      minTime: Infinity,
+      maxTime: 0
+    };
+  }
+
+  // Track response
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+
+    // Update global metrics
+    performanceMetrics.requests.total++;
+    if (res.statusCode < 400) {
+      performanceMetrics.requests.success++;
+    } else {
+      performanceMetrics.requests.error++;
+    }
+
+    // Update response time metrics
+    performanceMetrics.responseTime.total += duration;
+    performanceMetrics.responseTime.count++;
+    performanceMetrics.responseTime.min = Math.min(performanceMetrics.responseTime.min, duration);
+    performanceMetrics.responseTime.max = Math.max(performanceMetrics.responseTime.max, duration);
+    performanceMetrics.responseTime.avg = performanceMetrics.responseTime.total / performanceMetrics.responseTime.count;
+
+    // Update endpoint metrics
+    const endpointMetrics = performanceMetrics.endpoints[endpoint];
+    endpointMetrics.count++;
+    endpointMetrics.totalTime += duration;
+    endpointMetrics.avgTime = endpointMetrics.totalTime / endpointMetrics.count;
+    endpointMetrics.minTime = Math.min(endpointMetrics.minTime, duration);
+    endpointMetrics.maxTime = Math.max(endpointMetrics.maxTime, duration);
+
+    if (res.statusCode < 400) {
+      endpointMetrics.success++;
+    } else {
+      endpointMetrics.error++;
+    }
+
+    // Log slow requests (> 1 second)
+    if (duration > 1000) {
+      logger.warn('Slow request detected', {
+        endpoint,
+        duration: `${duration}ms`,
+        statusCode: res.statusCode
+      });
+    }
+  });
+
+  next();
+}
+
+/**
+ * Get performance metrics
+ */
+function getPerformanceMetrics() {
+  return {
+    ...performanceMetrics,
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Reset performance metrics
+ */
+function resetPerformanceMetrics() {
+  performanceMetrics.requests = { total: 0, success: 0, error: 0 };
+  performanceMetrics.responseTime = { total: 0, count: 0, min: Infinity, max: 0, avg: 0 };
+  performanceMetrics.endpoints = {};
+  logger.info('Performance metrics reset');
+}
+
+// ============================================
+// Error Rate Monitoring
+// ============================================
+
+/**
+ * Error rate tracking
+ */
+const errorRateMetrics = {
+  errors: [],
+  maxErrors: 100, // Keep last 100 errors
+  windowMinutes: 5 // Calculate rate over 5 minutes
+};
+
+/**
+ * Track error occurrence
+ */
+function trackError(error, context = {}) {
+  errorRateMetrics.errors.push({
+    timestamp: Date.now(),
+    error: error.message,
+    code: error.code,
+    statusCode: error.statusCode,
+    ...context
+  });
+
+  // Keep only last maxErrors
+  if (errorRateMetrics.errors.length > errorRateMetrics.maxErrors) {
+    errorRateMetrics.errors.shift();
+  }
+
+  // Check if error rate is high
+  const errorRate = getErrorRate();
+  if (errorRate > 0.5) { // More than 50% error rate
+    logger.error('High error rate detected', {
+      errorRate: `${(errorRate * 100).toFixed(1)}%`,
+      recentErrors: errorRateMetrics.errors.slice(-5)
+    });
+  }
+}
+
+/**
+ * Get current error rate (errors per minute)
+ */
+function getErrorRate() {
+  const now = Date.now();
+  const windowMs = errorRateMetrics.windowMinutes * 60 * 1000;
+
+  const recentErrors = errorRateMetrics.errors.filter(
+    e => now - e.timestamp < windowMs
+  );
+
+  return recentErrors.length / errorRateMetrics.windowMinutes;
+}
+
+/**
+ * Get error statistics
+ */
+function getErrorStats() {
+  const now = Date.now();
+  const windowMs = errorRateMetrics.windowMinutes * 60 * 1000;
+
+  const recentErrors = errorRateMetrics.errors.filter(
+    e => now - e.timestamp < windowMs
+  );
+
+  // Group by error code
+  const errorsByCode = {};
+  recentErrors.forEach(e => {
+    const code = e.code || 'UNKNOWN';
+    errorsByCode[code] = (errorsByCode[code] || 0) + 1;
+  });
+
+  return {
+    totalErrors: errorRateMetrics.errors.length,
+    recentErrors: recentErrors.length,
+    errorRate: getErrorRate(),
+    windowMinutes: errorRateMetrics.windowMinutes,
+    errorsByCode,
+    timestamp: new Date().toISOString()
+  };
+}
+
+// ============================================
+// Graceful Shutdown
+// ============================================
+
+/**
+ * Setup graceful shutdown handlers
+ * @param {object} server - HTTP server instance
+ * @param {function} cleanup - Optional cleanup function
+ */
+function setupGracefulShutdown(server, cleanup = null) {
+  let isShuttingDown = false;
+
+  const shutdown = async (signal) => {
+    if (isShuttingDown) {
+      logger.warn('Shutdown already in progress');
+      return;
+    }
+
+    isShuttingDown = true;
+    logger.info(`Received ${signal}, starting graceful shutdown`);
+
+    // Stop accepting new connections
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
+
+    // Set timeout for forceful shutdown
+    const forceShutdownTimeout = setTimeout(() => {
+      logger.error('Forceful shutdown after timeout');
+      process.exit(1);
+    }, 30000); // 30 seconds
+
+    try {
+      // Run custom cleanup if provided
+      if (cleanup && typeof cleanup === 'function') {
+        logger.info('Running cleanup tasks');
+        await cleanup();
+      }
+
+      // Log final metrics
+      logger.info('Final performance metrics', getPerformanceMetrics());
+      logger.info('Final error statistics', getErrorStats());
+
+      clearTimeout(forceShutdownTimeout);
+      logger.info('Graceful shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error during shutdown', { error: error.message });
+      clearTimeout(forceShutdownTimeout);
+      process.exit(1);
+    }
+  };
+
+  // Handle shutdown signals
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+    shutdown('uncaughtException');
+  });
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled promise rejection', { reason, promise });
+    shutdown('unhandledRejection');
+  });
+
+  logger.info('Graceful shutdown handlers configured');
+}
+
+// ============================================
+// Configuration Validation
+// ============================================
+
+/**
+ * Validate required environment variables
+ * @param {array} requiredVars - Array of required variable names
+ * @returns {object} Validation result
+ */
+function validateConfig(requiredVars = []) {
+  const missing = [];
+  const present = [];
+
+  requiredVars.forEach(varName => {
+    if (!process.env[varName]) {
+      missing.push(varName);
+    } else {
+      present.push(varName);
+    }
+  });
+
+  const isValid = missing.length === 0;
+
+  if (!isValid) {
+    logger.error('Configuration validation failed', {
+      missing,
+      present: present.length
+    });
+  } else {
+    logger.info('Configuration validation passed', {
+      validated: present.length
+    });
+  }
+
+  return {
+    valid: isValid,
+    missing,
+    present
+  };
+}
+
+// ============================================
 // Exports
 // ============================================
 
@@ -289,5 +595,13 @@ module.exports = {
   handleRateLimitError,
   logRequest,
   errorHandler,
-  asyncHandler
+  asyncHandler,
+  performanceMonitoring,
+  getPerformanceMetrics,
+  resetPerformanceMetrics,
+  trackError,
+  getErrorRate,
+  getErrorStats,
+  setupGracefulShutdown,
+  validateConfig
 };
