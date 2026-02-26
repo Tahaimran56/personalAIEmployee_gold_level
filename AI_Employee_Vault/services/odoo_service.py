@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Any
 import logging
 
 try:
-    from odoorpc import ODOO
+    from odoo_rpc_client import Client as ODOO
 except ImportError:
     ODOO = None
     logging.warning("odoo-rpc-client not installed. Install with: pip install odoo-rpc-client")
@@ -110,14 +110,17 @@ class OdooService:
             host = url_parts[0]
             port = int(url_parts[1]) if len(url_parts) > 1 else 8069
 
-            # Create ODOO instance
-            self.odoo = ODOO(host, port=port)
-
-            # Login
-            self.odoo.login(self.database, self.username, self.password)
+            # Create ODOO Client instance
+            self.odoo = ODOO(
+                host=host,
+                port=port,
+                dbname=self.database,
+                user=self.username,
+                pwd=self.password
+            )
 
             self.connected = True
-            logger.info(f"Connected to Odoo {self.odoo.version} at {self.url}")
+            logger.info(f"Connected to Odoo at {self.url}/{self.database}")
             return True
 
         except Exception as e:
