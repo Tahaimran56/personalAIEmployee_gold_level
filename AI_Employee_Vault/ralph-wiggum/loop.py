@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging
 
-from ralph_wiggum.state_manager import StateManager
+from state_manager import StateManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
